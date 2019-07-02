@@ -47,7 +47,7 @@ void calculateBiquadCoeffs(BiquadCoeffs *coeffs, double Fc, double Q);
 
 int16_t biquadFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs);
 int16_t biquadDoubleFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs);
-void processData(FILE *inputFilePtr, FILE *outputFilePtr, BiquadBuff *buff, BiquadCoeffs *coeffs);
+void run(FILE *inputFilePtr, FILE *outputFilePtr, BiquadBuff *buff, BiquadCoeffs *coeffs);
 
 
 int main()
@@ -63,7 +63,7 @@ int main()
 
 	readHeader(headerBuff, inputFilePtr);
 	writeHeader(headerBuff, outputFilePtr);
-	processData(inputFilePtr, outputFilePtr, &buff, &coeffs);
+	run(inputFilePtr, outputFilePtr, &buff, &coeffs);
 	fclose(inputFilePtr);
 	fclose(outputFilePtr);
 
@@ -191,7 +191,7 @@ int16_t biquadDoubleFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeff
 	return (int16_t)acc;
 }
 
-void processData(FILE *inputFilePtr, FILE *outputFilePtr, BiquadBuff *buff, BiquadCoeffs *coeffs)
+void run(FILE *inputFilePtr, FILE *outputFilePtr, BiquadBuff *buff, BiquadCoeffs *coeffs)
 {
 	int16_t dataBuff[DATA_BUFF_SIZE];
 	size_t samplesRead;
@@ -206,7 +206,7 @@ void processData(FILE *inputFilePtr, FILE *outputFilePtr, BiquadBuff *buff, Biqu
 			break;
 		}
 
-		for (i = 0; i < samplesRead; i += 2)
+		for (i = 0; i < samplesRead - 1; i += 2)
 		{
 			dataBuff[i] = biquadFilter(dataBuff[i], buff, coeffs);
 			dataBuff[i + 1] = biquadDoubleFilter(dataBuff[i + 1], buff, coeffs) - dataBuff[i];
