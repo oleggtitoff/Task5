@@ -195,7 +195,7 @@ void run(FILE *inputFilePtr, FILE *outputFilePtr, BiquadBuff *buff, BiquadCoeffs
 {
 	int16_t dataBuff[DATA_BUFF_SIZE];
 	size_t samplesRead;
-	uint16_t i;
+	uint32_t i;
 
 	while (1)
 	{
