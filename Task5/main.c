@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <math.h>
 
-#define INPUT_FILE_NAME "TestSound3.wav"
+#define INPUT_FILE_NAME "TestSound4.wav"
 #define OUTPUT_FILE_NAME "Output.wav"
 #define FILE_HEADER_SIZE 44
 #define BYTES_PER_SAMPLE 2
@@ -13,7 +13,7 @@
 #define SAMPLE_RATE 48000
 #define CHANNELS 2
 
-#define FC 10000
+#define FC 200
 #define Q_VALUE 0.707		//must be between 0 and 0.707
 
 #define PI 3.14159265358979323846
@@ -171,7 +171,7 @@ int16_t biquadFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs)
 	buff->x[1] = buff->x[0];
 	buff->x[0] = sample;
 	buff->y[1] = buff->y[0];
-	buff->y[0] = (int32_t)((buff->acc + (1LL << 29)) >> 30);
+	buff->y[0] = (int32_t)(buff->acc >> 30);
 
 	buff->acc = buff->acc & 0x800000003FFFFFFF;
 
