@@ -22,7 +22,7 @@
 typedef struct {
 	int32_t x[2];
 	int32_t y[2];
-	int64_t acc;
+	uint32_t remainder;
 
 	double dx[2];
 	double dy[2];
@@ -137,7 +137,7 @@ void initializeBiquadBuff(BiquadBuff *buff)
 	buff->x[1] = 0;
 	buff->y[0] = 0;
 	buff->y[1] = 0;
-	buff->acc = 0;
+	buff->remainder = 0;
 
 	buff->dx[0] = 0;
 	buff->dx[1] = 0;
@@ -165,15 +165,17 @@ void calculateBiquadCoeffs(BiquadCoeffs *coeffs, double Fc, double Q)
 
 int16_t biquadFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs)
 {
-	buff->acc += (int64_t)coeffs->b[0] * sample + (int64_t)coeffs->b[1] * buff->x[0] + (int64_t)coeffs->b[2] *
+	int64_t acc = buff->remainder;
+
+	acc += (int64_t)coeffs->b[0] * sample + (int64_t)coeffs->b[1] * buff->x[0] + (int64_t)coeffs->b[2] *
 		buff->x[1] - (int64_t)coeffs->a[0] * buff->y[0] - (int64_t)coeffs->a[1] * buff->y[1];
 
 	buff->x[1] = buff->x[0];
 	buff->x[0] = sample;
 	buff->y[1] = buff->y[0];
-	buff->y[0] = (int32_t)(buff->acc >> 30);
+	buff->y[0] = (int32_t)(acc >> 30);
 
-	buff->acc = buff->acc & 0x800000003FFFFFFF;
+	buff->remainder = (uint32_t)acc & 0x3FFFFFFF;
 
 	return (int16_t)buff->y[0];
 }
