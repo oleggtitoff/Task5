@@ -20,8 +20,8 @@
 
 
 typedef struct {
-	int32_t x[2];
-	int32_t y[2];
+	int16_t x[2];
+	int16_t y[2];
 	uint32_t remainder;
 
 	double dx[2];
@@ -45,9 +45,12 @@ void writeHeader(uint8_t *headerBuff, FILE *outputFilePtr);
 void initializeBiquadBuff(BiquadBuff *buff);
 void calculateBiquadCoeffs(BiquadCoeffs *coeffs, double Fc, double Q);
 
-int16_t biquadFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs);
 int16_t biquadDoubleFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs);
+int16_t biquadFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs);
+void filterSignal(size_t size, BiquadBuff *buff, BiquadCoeffs *coeffs);
 void run(FILE *inputFilePtr, FILE *outputFilePtr, BiquadBuff *buff, BiquadCoeffs *coeffs);
+
+int16_t dataBuff[DATA_BUFF_SIZE * CHANNELS];
 
 
 int main()
@@ -55,15 +58,16 @@ int main()
 	FILE *inputFilePtr = openFile(INPUT_FILE_NAME, 0);
 	FILE *outputFilePtr = openFile(OUTPUT_FILE_NAME, 1);
 	uint8_t headerBuff[FILE_HEADER_SIZE];
-	BiquadBuff buff;
+	BiquadBuff buff[2];
 	BiquadCoeffs coeffs;
 
-	initializeBiquadBuff(&buff);
+	initializeBiquadBuff(&buff[0]);
+	initializeBiquadBuff(&buff[1]);
 	calculateBiquadCoeffs(&coeffs, FC, Q_VALUE);
 
 	readHeader(headerBuff, inputFilePtr);
 	writeHeader(headerBuff, outputFilePtr);
-	run(inputFilePtr, outputFilePtr, &buff, &coeffs);
+	run(inputFilePtr, outputFilePtr, buff, &coeffs);
 	fclose(inputFilePtr);
 	fclose(outputFilePtr);
 
@@ -163,6 +167,19 @@ void calculateBiquadCoeffs(BiquadCoeffs *coeffs, double Fc, double Q)
 	coeffs->a[1] = doubleToFixed30(coeffs->da[1]);
 }
 
+int16_t biquadDoubleFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs)
+{
+	double acc = coeffs->db[0] * sample + coeffs->db[1] * buff->dx[0] + coeffs->db[2] * buff->dx[1] -
+		coeffs->da[0] * buff->dy[0] - coeffs->da[1] * buff->dy[1];
+
+	buff->dx[1] = buff->dx[0];
+	buff->dx[0] = sample;
+	buff->dy[1] = buff->dy[0];
+	buff->dy[0] = acc;
+
+	return (int16_t)acc;
+}
+
 int16_t biquadFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs)
 {
 	int64_t acc = buff->remainder;
@@ -180,22 +197,19 @@ int16_t biquadFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs)
 	return (int16_t)buff->y[0];
 }
 
-int16_t biquadDoubleFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs)
+void filterSignal(size_t size, BiquadBuff *buff, BiquadCoeffs *coeffs)
 {
-	double acc = coeffs->db[0] * sample + coeffs->db[1] * buff->dx[0] + coeffs->db[2] * buff->dx[1] -
-		coeffs->da[0] * buff->dy[0] - coeffs->da[1] * buff->dy[1];
+	uint16_t i;
 
-	buff->dx[1] = buff->dx[0];
-	buff->dx[0] = sample;
-	buff->dy[1] = buff->dy[0];
-	buff->dy[0] = acc;
-
-	return (int16_t)acc;
+	for (i = 0; i < size / CHANNELS; i++)
+	{
+		dataBuff[i * CHANNELS] = biquadFilter(dataBuff[i * CHANNELS], &buff[0], coeffs);
+		dataBuff[i * CHANNELS + 1] = biquadFilter(dataBuff[i * CHANNELS + 1], &buff[1], coeffs);
+	}
 }
 
 void run(FILE *inputFilePtr, FILE *outputFilePtr, BiquadBuff *buff, BiquadCoeffs *coeffs)
 {
-	int16_t dataBuff[DATA_BUFF_SIZE];
 	size_t samplesRead;
 	uint32_t i;
 
@@ -208,12 +222,7 @@ void run(FILE *inputFilePtr, FILE *outputFilePtr, BiquadBuff *buff, BiquadCoeffs
 			break;
 		}
 
-		for (i = 0; i < samplesRead - 1; i += 2)
-		{
-			dataBuff[i] = biquadFilter(dataBuff[i], buff, coeffs);
-			dataBuff[i + 1] = biquadDoubleFilter(dataBuff[i + 1], buff, coeffs) - dataBuff[i];
-		}
-
+		filterSignal(samplesRead, buff, coeffs);
 		fwrite(dataBuff, BYTES_PER_SAMPLE, samplesRead, outputFilePtr);
 	}
 }
