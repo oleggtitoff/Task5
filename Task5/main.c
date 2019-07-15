@@ -5,10 +5,10 @@
 #include <stdint.h>
 #include <math.h>
 
-#define INPUT_FILE_NAME "TestSound4.wav"
+#define INPUT_FILE_NAME "TestSound7.wav"
 #define OUTPUT_FILE_NAME "Output.wav"
 #define FILE_HEADER_SIZE 44
-#define BYTES_PER_SAMPLE 2
+#define BYTES_PER_SAMPLE 4
 #define DATA_BUFF_SIZE 1000
 #define SAMPLE_RATE 48000
 #define CHANNELS 2
@@ -36,7 +36,7 @@ typedef struct {
 } BiquadCoeffs;
 
 
-int32_t doubleToFixed30(double x);
+int32_t doubleToFixed31(double x);
 
 FILE * openFile(char *fileName, _Bool mode);		//if 0 - read, if 1 - write
 void readHeader(uint8_t *headerBuff, FILE *inputFilePtr);
@@ -45,12 +45,12 @@ void writeHeader(uint8_t *headerBuff, FILE *outputFilePtr);
 void initializeBiquadBuff(BiquadBuff *buff);
 void calculateBiquadCoeffs(BiquadCoeffs *coeffs, double Fc, double Q);
 
-int16_t biquadDoubleFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs);
+int32_t biquadDoubleFilter(int32_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs);
 int16_t biquadFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs);
 void filterSignal(size_t size, BiquadBuff *buff, BiquadCoeffs *coeffs);
 void run(FILE *inputFilePtr, FILE *outputFilePtr, BiquadBuff *buff, BiquadCoeffs *coeffs);
 
-int16_t dataBuff[DATA_BUFF_SIZE * CHANNELS];
+int32_t dataBuff[DATA_BUFF_SIZE * CHANNELS];
 
 
 int main()
@@ -75,18 +75,18 @@ int main()
 }
 
 
-int32_t doubleToFixed30(double x)
+int32_t doubleToFixed31(double x)
 {
-	if (x >= 2)
+	if (x >= 1)
 	{
 		return INT32_MAX;
 	}
-	else if (x < -2)
+	else if (x < -1)
 	{
 		return INT32_MIN;
 	}
 
-	return (int32_t)(x * (double)(1LL << 30));
+	return (int32_t)(x * (double)(1LL << 31));
 }
 
 FILE * openFile(char *fileName, _Bool mode)		//if 0 - read, if 1 - write
@@ -160,14 +160,14 @@ void calculateBiquadCoeffs(BiquadCoeffs *coeffs, double Fc, double Q)
 	coeffs->da[0] = 2 * (K * K - 1) * norm;
 	coeffs->da[1] = (1 - K / Q + K * K) * norm;
 
-	coeffs->b[0] = doubleToFixed30(coeffs->db[0]);
-	coeffs->b[1] = doubleToFixed30(coeffs->db[1]);
+	coeffs->b[0] = doubleToFixed31(coeffs->db[0] / 2);
+	coeffs->b[1] = doubleToFixed31(coeffs->db[1] / 2);
 	coeffs->b[2] = coeffs->b[0];
-	coeffs->a[0] = doubleToFixed30(coeffs->da[0]);
-	coeffs->a[1] = doubleToFixed30(coeffs->da[1]);
+	coeffs->a[0] = doubleToFixed31(coeffs->da[0] / 2);
+	coeffs->a[1] = doubleToFixed31(coeffs->da[1] / 2);
 }
 
-int16_t biquadDoubleFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs)
+int32_t biquadDoubleFilter(int32_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs)
 {
 	double acc = coeffs->db[0] * sample + coeffs->db[1] * buff->dx[0] + coeffs->db[2] * buff->dx[1] -
 		coeffs->da[0] * buff->dy[0] - coeffs->da[1] * buff->dy[1];
@@ -177,7 +177,7 @@ int16_t biquadDoubleFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeff
 	buff->dy[1] = buff->dy[0];
 	buff->dy[0] = acc;
 
-	return (int16_t)acc;
+	return (int32_t)acc;
 }
 
 int16_t biquadFilter(int16_t sample, BiquadBuff *buff, BiquadCoeffs *coeffs)
@@ -203,8 +203,8 @@ void filterSignal(size_t size, BiquadBuff *buff, BiquadCoeffs *coeffs)
 
 	for (i = 0; i < size / CHANNELS; i++)
 	{
-		dataBuff[i * CHANNELS] = biquadFilter(dataBuff[i * CHANNELS], &buff[0], coeffs);
-		dataBuff[i * CHANNELS + 1] = biquadFilter(dataBuff[i * CHANNELS + 1], &buff[1], coeffs);
+		dataBuff[i * CHANNELS] = biquadDoubleFilter(dataBuff[i * CHANNELS + 1], &buff[1], coeffs);
+		//dataBuff[i * CHANNELS + 1] = biquadDoubleFilter(dataBuff[i * CHANNELS + 1], &buff[1], coeffs);
 	}
 }
 
