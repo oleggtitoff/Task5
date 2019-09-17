@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <math.h>
 
-#define INPUT_FILE_NAME "TestSound7.wav"
+#define INPUT_FILE_NAME "Input.wav"
 #define OUTPUT_FILE_NAME "Output.wav"
 #define FILE_HEADER_SIZE 44
 #define BYTES_PER_SAMPLE 4
@@ -13,8 +13,8 @@
 #define SAMPLE_RATE 48000
 #define CHANNELS 2
 
-#define FC 200
-#define Q_VALUE 0.707		//must be between 0 and 0.707
+#define FC 10000
+#define Q_VALUE 0.7071		//must be between 0 and 0.707
 
 #define PI 3.14159265358979323846
 
@@ -203,8 +203,8 @@ void filterSignal(size_t size, BiquadBuff *buff, BiquadCoeffs *coeffs)
 
 	for (i = 0; i < size / CHANNELS; i++)
 	{
-		dataBuff[i * CHANNELS] = biquadDoubleFilter(dataBuff[i * CHANNELS + 1], &buff[1], coeffs);
-		//dataBuff[i * CHANNELS + 1] = biquadDoubleFilter(dataBuff[i * CHANNELS + 1], &buff[1], coeffs);
+		//dataBuff[i * CHANNELS] = biquadDoubleFilter(dataBuff[i * CHANNELS + 1], &buff[1], coeffs);
+		dataBuff[i * CHANNELS + 1] = biquadDoubleFilter(dataBuff[i * CHANNELS + 1], &buff[1], coeffs);
 	}
 }
 
